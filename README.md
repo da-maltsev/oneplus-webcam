@@ -40,12 +40,15 @@ After a fresh OS install this fully restores the setup. Then:
 ## CLI usage
 
 ```
-oneplus-cam start [--facing back|front] [--camera-id N] [--zoom N] [--size WxH] [--fps N]
+oneplus-cam start [--facing back|front] [--camera-id N] [--zoom N] [--size WxH] [--fps N] [--preview]
 oneplus-cam stop
 oneplus-cam status
 oneplus-cam state          # machine-readable JSON
 oneplus-cam cams [--json]  # list available cameras
 ```
+
+`start` runs **headless** by default (no window). Pass `--preview` to also open a
+camera preview window (still feeding the v4l2 webcam).
 
 ## Camera ids
 
@@ -60,10 +63,11 @@ scrcpy exposes the phone's cameras by id (see `oneplus-cam cams`):
 
 ## Widget
 
-- **Status dot**: green = streaming, amber = phone connected, red = no phone.
+- **Status dot**: green when streaming; the icon grays out (disabled) when no
+  phone is connected.
 - **Panel** (click the camera icon): lens dropdown, zoom, size, fps,
-  Start/Stop button, and live status. Keyboard: `s` start/stop, `r` refresh,
-  `Esc` close.
+  a "With preview" toggle, Start/Stop button, and live status. Keyboard:
+  `s` start/stop, `r` refresh, `Esc` close.
 
 ## Files
 

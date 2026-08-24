@@ -41,6 +41,7 @@ Panel {
   property int selZoom: 1
   property string selSize: "1920x1080"
   property int selFps: 30
+  property bool previewWindow: false
   property bool _synced: false
 
   // --- stdout/stderr buffers for the three Process slots ---
@@ -86,11 +87,13 @@ Panel {
   }
 
   function doStart() {
-    runAction([helperPath, "start",
+    var args = [helperPath, "start",
       "--camera-id", selCamera,
       "--zoom", String(selZoom),
       "--size", selSize,
-      "--fps", String(selFps)])
+      "--fps", String(selFps)]
+    if (root.previewWindow) args.push("--preview")
+    runAction(args)
   }
 
   function doStop() {
@@ -137,6 +140,7 @@ Panel {
         root.selZoom = root.state.zoom ? Math.max(1, Number(root.state.zoom)) : 1
         root.selSize = root.state.size ? String(root.state.size) : "1920x1080"
         root.selFps = root.state.fps ? Math.max(10, Number(root.state.fps)) : 30
+        root.previewWindow = root.state.preview === 1 || root.state.preview === true
         root._synced = true
       }
     }
@@ -189,12 +193,13 @@ Panel {
   }
 
   Rectangle {
+    visible: root.running
     anchors.right: parent.right
     anchors.top: parent.top
     width: 6
     height: 6
     radius: 3
-    color: root.running ? "#4ade80" : (root.connected ? "#facc15" : "#f87171")
+    color: "#4ade80"
   }
 
   // --- popup panel ---
@@ -278,7 +283,7 @@ Panel {
             text: {
               if (!root.connected) return "No phone detected. Plug in the USB cable and accept the debug prompt."
               if (!root.authorized) return "Phone connected but not authorized. Accept the prompt on the phone."
-              if (root.running) return "Running · " + root.cameraLabel + " · zoom " + root.selZoom + " · " + root.selSize + "@" + root.selFps + "fps"
+              if (root.running) return "Running · " + root.cameraLabel + " · zoom " + root.selZoom + " · " + root.selSize + "@" + root.selFps + "fps" + (root.previewWindow ? " · preview" : "")
               return "Stopped."
             }
             color: root.dim
@@ -385,6 +390,16 @@ Panel {
             enabled: root.connected && root.authorized && !root.busy
             opacity: root.connected && root.authorized ? 1.0 : 0.5
             onClicked: root.running ? root.doStop() : root.doStart()
+          }
+
+          Toggle {
+            width: parent.width
+            label: "With preview"
+            description: "Show a camera preview window (default: headless)"
+            checked: root.previewWindow
+            foreground: root.foreground
+            fontFamily: root.fontFamily
+            onClicked: root.previewWindow = !root.previewWindow
           }
 
           Text {

@@ -10,6 +10,7 @@ PIDFILE="${ONEPLUS_CAM_PIDFILE:-$HOME/.local/state/oneplus-cam.pid}"
 : "${SIZE:=1920x1080}"
 : "${FPS:=30}"
 : "${ZOOM:=}"
+: "${PREVIEW:=0}"
 
 load_config() {
     if [[ -f "$CONFIG" ]]; then
@@ -27,6 +28,7 @@ CAMERA_ID=${CAMERA_ID}
 SIZE=${SIZE}
 FPS=${FPS}
 ZOOM=${ZOOM}
+PREVIEW=${PREVIEW}
 EOF
 }
 
@@ -36,7 +38,7 @@ find_usb_serial() {
 
 cmd_start() {
     load_config
-    local facing=back size="$SIZE" fps="$FPS" zoom="$ZOOM" camera_id=""
+    local facing=back size="$SIZE" fps="$FPS" zoom="$ZOOM" camera_id="" preview="$PREVIEW"
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --facing) facing="$2"; shift 2 ;;
@@ -44,6 +46,7 @@ cmd_start() {
             --fps) fps="$2"; shift 2 ;;
             --camera-id) camera_id="$2"; shift 2 ;;
             --zoom) zoom="$2"; shift 2 ;;
+            --preview) preview=1; shift ;;
             *) echo "Unknown option: $1"; exit 1 ;;
         esac
     done
@@ -61,9 +64,15 @@ cmd_start() {
         zoom_arg=(--camera-zoom="$zoom")
     fi
 
+    local window_arg=()
+    if [[ "$preview" != "1" ]]; then
+        window_arg=(--no-window)
+    fi
+
     ZOOM="$zoom"
     SIZE="$size"
     FPS="$fps"
+    PREVIEW="$preview"
     save_config
 
     local serial
@@ -97,6 +106,7 @@ cmd_start() {
         --camera-size="$size" \
         --camera-fps="$fps" \
         "${zoom_arg[@]}" \
+        "${window_arg[@]}" \
         --stay-awake \
         --no-audio \
         --v4l2-sink="$DEVICE" \
@@ -155,8 +165,8 @@ cmd_state() {
     if echo "$dev_states" | grep -qx "device"; then
         authorized=true
     fi
-    printf '{"running":%s,"pid":%s,"cameraId":%s,"zoom":%s,"size":"%s","fps":%s,"device":"%s","serial":"%s","connected":%s,"authorized":%s}\n' \
-        "$running" "$pid" "$CAMERA_ID" "$zoom" "$SIZE" "$FPS" "$DEVICE" "$SERIAL" "$connected" "$authorized"
+    printf '{"running":%s,"pid":%s,"cameraId":%s,"zoom":%s,"size":"%s","fps":%s,"device":"%s","serial":"%s","connected":%s,"authorized":%s,"preview":%s}\n' \
+        "$running" "$pid" "$CAMERA_ID" "$zoom" "$SIZE" "$FPS" "$DEVICE" "$SERIAL" "$connected" "$authorized" "$PREVIEW"
 }
 
 cmd_cams() {
@@ -204,7 +214,8 @@ case "${1:-}" in
     cams) shift; cmd_cams "$@" ;;
     *)
         echo "Usage: oneplus-cam {start|stop|status|state|cams}"
-        echo "  start [--facing back|front] [--camera-id N] [--zoom N] [--size WxH] [--fps N]"
+        echo "  start [--facing back|front] [--camera-id N] [--zoom N] [--size WxH] [--fps N] [--preview]"
+        echo "        --preview: open a preview window (default is headless)"
         echo "  state  machine-readable status (JSON)"
         echo "  cams [--json]   list available cameras"
         exit 1
