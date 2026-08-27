@@ -11,6 +11,8 @@ public static class PipelineCommands
     public const int MinAndroidSdk = 31;
     public const string VirtualCameraDriverHelp =
         "The virtual webcam driver is not running. Click \"Install webcam driver\" and accept the administrator prompt, then Refresh.";
+    public const string RegisterDriverArgument = "--register-driver";
+    public const string AssistantServiceName = "AkVCamAssistant";
 
     public static readonly string[] SizeChoices =
     [
@@ -102,6 +104,27 @@ public static class PipelineCommands
 
     public static CommandSpec AkVCamUpdate(string akVCamManager) =>
         new(akVCamManager, "update");
+
+    public static CommandSpec ScQueryAssistant(string scExe) =>
+        new(scExe, "query " + AssistantServiceName);
+
+    public static CommandSpec ScStartAssistant(string scExe) =>
+        new(scExe, "start " + AssistantServiceName);
+
+    public static bool ScQueryReportsRunning(string output)
+    {
+        foreach (var raw in output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
+        {
+            var line = raw.Trim();
+            if (line.StartsWith("STATE", StringComparison.OrdinalIgnoreCase)
+                && line.Contains("RUNNING", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     public static void ParseSize(string size, out int width, out int height)
     {

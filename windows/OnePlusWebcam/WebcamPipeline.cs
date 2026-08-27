@@ -293,6 +293,25 @@ internal sealed class WebcamPipeline : IDisposable
             return PipelineCommands.VirtualCameraDriverHelp;
         }
 
+        var sc = Path.Combine(Environment.SystemDirectory, "sc.exe");
+        try
+        {
+            var query = await RunCapturedAsync(
+                    PipelineCommands.ScQueryAssistant(sc),
+                    TimeSpan.FromSeconds(5),
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (!PipelineCommands.ScQueryReportsRunning(query.Output))
+            {
+                return PipelineCommands.VirtualCameraDriverHelp;
+            }
+        }
+        catch (TimeoutException ex)
+        {
+            _log.Write(ex.Message);
+            return PipelineCommands.VirtualCameraDriverHelp;
+        }
+
         string? listedOutput = null;
         for (var attempt = 0; attempt < 3; attempt++)
         {

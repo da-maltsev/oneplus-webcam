@@ -1,5 +1,5 @@
 #define MyAppName "OnePlus Webcam"
-#define MyAppVersion "1.0.3"
+#define MyAppVersion "1.0.4"
 #define MyAppPublisher "Daniil Maltsev"
 #define MyAppExeName "OnePlusWebcam.exe"
 
@@ -49,8 +49,7 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "OnePlusWebcam"; ValueData: """{app}\{#MyAppExeName}"""; Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
-Filename: "{app}\tools\akvcam\akvirtualcamera-setup.exe"; Parameters: "/S"; StatusMsg: "Installing virtual camera driver..."; Flags: runhidden waituntilterminated skipifdoesntexist
-Filename: "{app}\tools\akvcam\register-vcam.cmd"; StatusMsg: "Registering OnePlus Webcam..."; Flags: runhidden waituntilterminated
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--register-driver"; StatusMsg: "Installing virtual webcam driver (accept any Windows prompt)..."; Flags: waituntilterminated
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch OnePlus Webcam"; Flags: nowait postinstall skipifsilent runasoriginaluser
 
 [UninstallRun]

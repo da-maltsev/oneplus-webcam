@@ -268,15 +268,24 @@ internal sealed class MainForm : Form
 
     private async Task InstallDriverAsync()
     {
-        lblError.Text = "Waiting for the administrator prompt...";
+        lblError.Text = DriverInstaller.IsAdministrator()
+            ? "Installing virtual camera driver..."
+            : "Windows should ask for administrator permission now. Check the dimmed prompt (it may be on another monitor) and choose Yes.";
         Refresh();
         try
         {
-            var tools = new ToolPaths();
-            var ok = await Task.Run(() => DriverInstaller.TryElevateRegister(tools)).ConfigureAwait(true);
-            if (!ok)
+            var outcome = await Task.Run(DriverInstaller.TryElevateRegister).ConfigureAwait(true);
+            if (outcome.Cancelled)
             {
-                lblError.Text = "Driver install was cancelled or failed. Right-click OnePlusWebcam-Setup.exe and choose Run as administrator, then reinstall.";
+                lblError.Text = "The administrator prompt was cancelled. Click Install webcam driver again and choose Yes.";
+                return;
+            }
+
+            if (!outcome.Ok)
+            {
+                lblError.Text =
+                    "Driver install did not finish (code " + outcome.ExitCode +
+                    "). Right-click OnePlusWebcam.exe and choose Run as administrator, or re-run OnePlusWebcam-Setup.exe.";
                 return;
             }
 

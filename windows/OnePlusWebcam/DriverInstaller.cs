@@ -1,38 +1,51 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Security.Principal;
 
 namespace OnePlusWebcam;
 
 internal static class DriverInstaller
 {
-    public static bool TryElevateRegister(ToolPaths tools)
+    private const int ErrorCancelled = 1223;
+
+    public static bool IsAdministrator()
     {
-        var dir = tools.AkvcamDir;
-        var cmd = Path.Combine(dir, "register-vcam.cmd");
-        if (!File.Exists(cmd))
+        using var identity = WindowsIdentity.GetCurrent();
+        return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
+    }
+
+    public static ElevationOutcome TryElevateRegister()
+    {
+        var exe = Environment.ProcessPath;
+        if (string.IsNullOrEmpty(exe) || !File.Exists(exe))
         {
-            return false;
+            return new ElevationOutcome(false, false, -1);
         }
 
+        var alreadyAdmin = IsAdministrator();
         var psi = new ProcessStartInfo
         {
-            FileName = Path.Combine(Environment.SystemDirectory, "cmd.exe"),
-            Arguments = "/c \"" + cmd + "\"",
-            WorkingDirectory = dir,
+            FileName = exe,
+            Arguments = PipelineCommands.RegisterDriverArgument,
+            WorkingDirectory = Path.GetDirectoryName(exe) ?? "",
             UseShellExecute = true,
-            Verb = "runas",
-            WindowStyle = ProcessWindowStyle.Hidden,
+            WindowStyle = ProcessWindowStyle.Normal,
+            ErrorDialog = true,
         };
+        if (!alreadyAdmin)
+        {
+            psi.Verb = "runas";
+        }
 
         try
         {
             using var process = Process.Start(psi);
             if (process is null)
             {
-                return false;
+                return new ElevationOutcome(false, false, -1);
             }
 
-            if (!process.WaitForExit(120_000))
+            if (!process.WaitForExit(180_000))
             {
                 try
                 {
@@ -42,14 +55,20 @@ internal static class DriverInstaller
                 {
                 }
 
-                return false;
+                return new ElevationOutcome(false, false, -2);
             }
 
-            return process.ExitCode == 0;
+            return new ElevationOutcome(process.ExitCode == 0, false, process.ExitCode);
+        }
+        catch (Win32Exception ex) when (ex.NativeErrorCode == ErrorCancelled)
+        {
+            return new ElevationOutcome(false, true, ErrorCancelled);
         }
         catch (Win32Exception)
         {
-            return false;
+            return new ElevationOutcome(false, false, -1);
         }
     }
 }
+
+internal readonly record struct ElevationOutcome(bool Ok, bool Cancelled, int ExitCode);

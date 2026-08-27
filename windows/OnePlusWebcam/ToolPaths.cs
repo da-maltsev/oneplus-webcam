@@ -15,7 +15,9 @@ internal sealed class ToolPaths
 
     public ToolPaths(string? baseDirectory = null)
     {
-        InstallDir = baseDirectory ?? AppContext.BaseDirectory;
+        InstallDir = baseDirectory
+            ?? Path.GetDirectoryName(Environment.ProcessPath)
+            ?? AppContext.BaseDirectory;
         Adb = Path.Combine(InstallDir, "tools", "scrcpy", "adb.exe");
         Scrcpy = Path.Combine(InstallDir, "tools", "scrcpy", "scrcpy.exe");
         ScrcpyServer = Path.Combine(InstallDir, "tools", "scrcpy", "scrcpy-server");
@@ -33,8 +35,7 @@ internal sealed class ToolPaths
         }
 
         AkVCamManager = FindAkVCamManager(AkvcamDir);
-        var assistant = Path.Combine(AkvcamDir, "AkVCamAssistant.exe");
-        AkVCamAssistant = File.Exists(assistant) ? assistant : null;
+        AkVCamAssistant = FindAkVCamAssistant(AkvcamDir);
     }
 
     public string? MissingCaptureToolsMessage()
@@ -74,8 +75,32 @@ internal sealed class ToolPaths
         var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
         string[] known =
         [
+            Path.Combine(programFiles, "AkVirtualCamera", "x64", "AkVCamManager.exe"),
             Path.Combine(programFiles, "akvirtualcamera", "x64", "AkVCamManager.exe"),
             Path.Combine(programFiles, "AkVirtualCamera", "AkVCamManager.exe"),
+        ];
+        foreach (var path in known)
+        {
+            if (File.Exists(path))
+            {
+                return path;
+            }
+        }
+
+        return null;
+    }
+
+    private static string? FindAkVCamAssistant(string akvcamDir)
+    {
+        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+        string[] known =
+        [
+            Path.Combine(akvcamDir, "AkVCamAssistant.exe"),
+            Path.Combine(akvcamDir, "x64", "AkVCamAssistant.exe"),
+            Path.Combine(programFiles, "AkVirtualCamera", "x64", "AkVCamAssistant.exe"),
+            Path.Combine(programFiles, "akvirtualcamera", "x64", "AkVCamAssistant.exe"),
+            Path.Combine(programFilesX86, "AkVirtualCamera", "x86", "AkVCamAssistant.exe"),
         ];
         foreach (var path in known)
         {

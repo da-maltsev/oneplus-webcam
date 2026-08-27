@@ -38,6 +38,23 @@ public class PipelineCommandsTests
     {
         Assert.Contains("Install webcam driver", PipelineCommands.VirtualCameraDriverHelp, StringComparison.Ordinal);
         Assert.Equal("--install", PipelineCommands.AkVCamAssistantInstall("AkVCamAssistant.exe").Arguments);
+        Assert.Equal("--register-driver", PipelineCommands.RegisterDriverArgument);
+    }
+
+    [Fact]
+    public void ScQueryReportsRunning_ReadsStateLine()
+    {
+        var running =
+            "SERVICE_NAME: AkVCamAssistant\r\n" +
+            "        STATE              : 4  RUNNING\r\n" +
+            "                                (STOPPABLE)";
+        Assert.True(PipelineCommands.ScQueryReportsRunning(running));
+
+        var stopped =
+            "SERVICE_NAME: AkVCamAssistant\r\n" +
+            "        STATE              : 1  STOPPED\r\n";
+        Assert.False(PipelineCommands.ScQueryReportsRunning(stopped));
+        Assert.False(PipelineCommands.ScQueryReportsRunning("[SC] OpenService FAILED 1060"));
     }
 
     [Fact]

@@ -7,8 +7,15 @@ internal static class Program
     private const string MutexName = @"Local\OnePlusWebcam";
 
     [STAThread]
-    private static void Main()
+    private static void Main(string[] args)
     {
+        ApplicationConfiguration.Initialize();
+        if (args.Any(a => string.Equals(a, PipelineCommands.RegisterDriverArgument, StringComparison.OrdinalIgnoreCase)))
+        {
+            Environment.ExitCode = DriverSetupForm.Run();
+            return;
+        }
+
         using var mutex = new Mutex(true, MutexName, out var createdNew);
         if (!createdNew)
         {
@@ -16,11 +23,11 @@ internal static class Program
             return;
         }
 
-        ApplicationConfiguration.Initialize();
         Directory.CreateDirectory(ConfigStore.DefaultDirectory);
         var config = ConfigStore.Load();
         var log = new FileLogger(ConfigStore.DefaultLogPath);
-        var tools = new ToolPaths();
+        var installDir = Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory;
+        var tools = new ToolPaths(installDir);
         var pipeline = new WebcamPipeline(tools, log);
         var form = new MainForm(pipeline, log, config);
         Application.Run(new TrayApplicationContext(form, pipeline));
