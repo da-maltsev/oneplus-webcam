@@ -1,0 +1,90 @@
+name: windows-release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Test Core
+        run: dotnet test windows/OnePlusWebcam.Tests/OnePlusWebcam.Tests.csproj -c Release --nologo
+
+      - name: Publish app
+        run: >
+          dotnet publish windows/OnePlusWebcam/OnePlusWebcam.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -o publish
+
+      - name: Vendor dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $deps = Get-Content windows/setup/deps.json | ConvertFrom-Json
+          $vendor = "windows/setup/vendor"
+          New-Item -ItemType Directory -Force -Path $vendor | Out-Null
+
+          function Get-Verified($Url, $Sha256, $OutFile) {
+            Invoke-WebRequest -Uri $Url -OutFile $OutFile -UseBasicParsing
+            $hash = (Get-FileHash -Algorithm SHA256 $OutFile).Hash.ToLower()
+            if ($hash -ne $Sha256.ToLower()) {
+              throw "SHA256 mismatch for $OutFile expected $($Sha256) got $hash"
+            }
+          }
+
+          Get-Verified $deps.scrcpy.url $deps.scrcpy.sha256 "$vendor/scrcpy.zip"
+          Get-Verified $deps.ffmpeg.url $deps.ffmpeg.sha256 "$vendor/ffmpeg.zip"
+          Get-Verified $deps.akvirtualcamera.url $deps.akvirtualcamera.sha256 "$vendor/akvirtualcamera-windows-9.4.1.exe"
+
+          Expand-Archive -Path "$vendor/scrcpy.zip" -DestinationPath "$vendor/scrcpy-extract" -Force
+          $scrcpyRoot = Get-ChildItem "$vendor/scrcpy-extract" -Directory | Select-Object -First 1
+          if ($scrcpyRoot) {
+            New-Item -ItemType Directory -Force -Path "$vendor/scrcpy" | Out-Null
+            Copy-Item -Path (Join-Path $scrcpyRoot.FullName "*") -Destination "$vendor/scrcpy" -Recurse -Force
+          } else {
+            New-Item -ItemType Directory -Force -Path "$vendor/scrcpy" | Out-Null
+            Copy-Item -Path "$vendor/scrcpy-extract\*" -Destination "$vendor/scrcpy" -Recurse -Force
+          }
+
+          Expand-Archive -Path "$vendor/ffmpeg.zip" -DestinationPath "$vendor/ffmpeg-extract" -Force
+          $ffmpegBin = Join-Path "$vendor/ffmpeg-extract" $deps.ffmpeg.binDirName
+          $ffmpegBin = Join-Path $ffmpegBin "bin"
+          New-Item -ItemType Directory -Force -Path "$vendor/ffmpeg" | Out-Null
+          Copy-Item (Join-Path $ffmpegBin "ffmpeg.exe") "$vendor/ffmpeg/ffmpeg.exe"
+          Copy-Item (Join-Path $ffmpegBin "ffplay.exe") "$vendor/ffmpeg/ffplay.exe"
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Compile installer
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" windows\setup\oneplus-webcam.iss
+          if (-not (Test-Path windows/setup/output/OnePlusWebcam-Setup.exe)) { throw "Setup.exe missing" }
+
+      - name: Upload artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: OnePlusWebcam-Setup
+          path: windows/setup/output/OnePlusWebcam-Setup.exe
+
+      - name: GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: windows/setup/output/OnePlusWebcam-Setup.exe

@@ -1,2 +1,8 @@
 *.log
 .DS_Store
+windows/**/bin/
+windows/**/obj/
+windows/setup/output/
+windows/setup/vendor/*
+!windows/setup/vendor/.gitkeep
+publish/

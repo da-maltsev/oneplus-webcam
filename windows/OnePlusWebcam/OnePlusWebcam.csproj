@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <AssemblyName>OnePlusWebcam</AssemblyName>
+    <RootNamespace>OnePlusWebcam</RootNamespace>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Version>1.0.0</Version>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OnePlusWebcam.Core\OnePlusWebcam.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\setup\vcam.ini" Link="vcam.ini" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
