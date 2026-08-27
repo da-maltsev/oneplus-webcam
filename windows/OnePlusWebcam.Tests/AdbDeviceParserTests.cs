@@ -48,6 +48,9 @@ public class AdbDeviceParserTests
         Assert.Equal("ABCDEF", devices[0].Serial);
         Assert.Equal(DeviceAdbStatus.Unauthorized, devices[0].Status);
     }
+
+    [Fact]
+    public void Parse_UnauthorizedAndOffline()
     {
         const string output = """
             List of devices attached
