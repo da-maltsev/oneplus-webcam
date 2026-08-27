@@ -385,9 +385,14 @@ internal sealed class MainForm : Form
         }
     }
 
-    private sealed class CameraItem(CameraInfo info)
+    private sealed class CameraItem
     {
-        public CameraInfo Info { get; } = info;
-        public string Label => $"Camera {info.Id} ({info.Facing})";
+        public CameraItem(CameraInfo camera)
+        {
+            Info = camera;
+        }
+
+        public CameraInfo Info { get; }
+        public string Label => $"Camera {Info.Id} ({Info.Facing})";
     }
 }

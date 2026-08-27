@@ -8,14 +8,12 @@ internal sealed class FileLogger
     public FileLogger(string path)
     {
         _path = path;
-        var dir = Path.GetDirectoryName(path);
+        var dir = System.IO.Path.GetDirectoryName(path);
         if (!string.IsNullOrEmpty(dir))
         {
             Directory.CreateDirectory(dir);
         }
     }
-
-    public string Path => _path;
 
     public void Write(string message)
     {
