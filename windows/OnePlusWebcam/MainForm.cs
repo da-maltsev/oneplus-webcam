@@ -15,6 +15,7 @@ internal sealed class MainForm : Form
     private readonly CheckBox chkPreview = new();
     private readonly CheckBox chkStartWithWindows = new();
     private readonly Button btnRefresh = new();
+    private readonly Button btnInstallDriver = new();
     private readonly Button btnStartStop = new();
     private readonly Label lblError = new();
     private readonly Label lblDevice = new();
@@ -32,8 +33,29 @@ internal sealed class MainForm : Form
         _log = log;
         _config = config;
         BuildUi();
-        Load += async (_, _) => await RefreshAllAsync().ConfigureAwait(true);
-        _timer.Tick += async (_, _) => await OnTimerAsync().ConfigureAwait(true);
+        Load += async (_, _) =>
+        {
+            try
+            {
+                await RefreshAllAsync().ConfigureAwait(true);
+            }
+            catch (Exception ex)
+            {
+                lblError.Text = ex.Message;
+                _log.Write(ex.ToString());
+            }
+        };
+        _timer.Tick += async (_, _) =>
+        {
+            try
+            {
+                await OnTimerAsync().ConfigureAwait(true);
+            }
+            catch (Exception ex)
+            {
+                _log.Write(ex.ToString());
+            }
+        };
         VisibleChanged += (_, _) => _timer.Interval = Visible ? 3000 : 10000;
         _timer.Interval = 3000;
         _timer.Start();
@@ -85,7 +107,7 @@ internal sealed class MainForm : Form
         FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
-        ClientSize = new Size(420, 560);
+        ClientSize = new Size(420, 600);
         Font = new Font("Segoe UI", 9F);
 
         lblStatus.SetBounds(16, 16, 388, 40);
@@ -153,13 +175,28 @@ internal sealed class MainForm : Form
 
         btnRefresh.SetBounds(16, 376, 180, 36);
         btnRefresh.Text = "Refresh";
-        btnRefresh.Click += async (_, _) => await RefreshAllAsync().ConfigureAwait(true);
+        btnRefresh.Click += async (_, _) =>
+        {
+            try
+            {
+                await RefreshAllAsync().ConfigureAwait(true);
+            }
+            catch (Exception ex)
+            {
+                lblError.Text = ex.Message;
+                _log.Write(ex.ToString());
+            }
+        };
 
-        btnStartStop.SetBounds(224, 376, 180, 36);
+        btnInstallDriver.SetBounds(224, 376, 180, 36);
+        btnInstallDriver.Text = "Install webcam driver";
+        btnInstallDriver.Click += async (_, _) => await InstallDriverAsync().ConfigureAwait(true);
+
+        btnStartStop.SetBounds(16, 420, 388, 36);
         btnStartStop.Text = "Start webcam";
         btnStartStop.Click += async (_, _) => await StartOrStopAsync(forceStart: false).ConfigureAwait(true);
 
-        lblError.SetBounds(16, 428, 388, 112);
+        lblError.SetBounds(16, 464, 388, 120);
         lblError.ForeColor = Color.Firebrick;
         lblError.AutoSize = false;
 
@@ -167,7 +204,7 @@ internal sealed class MainForm : Form
         [
             lblStatus, lblDevice, cmbDevice, lblCamera, cmbCamera, lblSize, cmbSize,
             lblFps, nudFps, lblZoom, nudZoom, chkPreview, chkStartWithWindows,
-            btnRefresh, btnStartStop, lblError,
+            btnRefresh, btnInstallDriver, btnStartStop, lblError,
         ]);
     }
 
@@ -210,15 +247,46 @@ internal sealed class MainForm : Form
     private async Task RefreshAllAsync()
     {
         lblError.Text = "";
-        var vcam = await _pipeline.EnsureVirtualCameraAsync(CancellationToken.None).ConfigureAwait(true);
-        if (vcam is not null)
+        try
         {
-            lblError.Text = vcam;
+            var vcam = await _pipeline.EnsureVirtualCameraAsync(CancellationToken.None).ConfigureAwait(true);
+            if (vcam is not null)
+            {
+                lblError.Text = vcam;
+            }
+        }
+        catch (Exception ex)
+        {
+            lblError.Text = PipelineCommands.VirtualCameraDriverHelp;
+            _log.Write(ex.ToString());
         }
 
         await RefreshPhonesAsync().ConfigureAwait(true);
         await RefreshCamerasAsync().ConfigureAwait(true);
         UpdateRunningUi();
+    }
+
+    private async Task InstallDriverAsync()
+    {
+        lblError.Text = "Waiting for the administrator prompt...";
+        Refresh();
+        try
+        {
+            var tools = new ToolPaths();
+            var ok = await Task.Run(() => DriverInstaller.TryElevateRegister(tools)).ConfigureAwait(true);
+            if (!ok)
+            {
+                lblError.Text = "Driver install was cancelled or failed. Right-click OnePlusWebcam-Setup.exe and choose Run as administrator, then reinstall.";
+                return;
+            }
+
+            await RefreshAllAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            lblError.Text = PipelineCommands.VirtualCameraDriverHelp;
+            _log.Write(ex.ToString());
+        }
     }
 
     private async Task RefreshPhonesAsync()

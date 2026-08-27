@@ -9,7 +9,7 @@
     <AssemblyName>OnePlusWebcam</AssemblyName>
     <RootNamespace>OnePlusWebcam</RootNamespace>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
-    <Version>1.0.0</Version>
+    <Version>1.0.3</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
   <ItemGroup>
@@ -17,5 +17,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="..\setup\vcam.ini" Link="vcam.ini" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\setup\register-vcam.cmd" Link="tools\akvcam\register-vcam.cmd" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\setup\vcam.ini" Link="tools\akvcam\vcam.ini" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

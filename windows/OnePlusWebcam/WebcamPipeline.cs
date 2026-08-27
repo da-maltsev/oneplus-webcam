@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Text;
 
 namespace OnePlusWebcam;
 
@@ -40,10 +39,16 @@ internal sealed class WebcamPipeline : IDisposable
         bool preview,
         CancellationToken cancellationToken)
     {
-        var missing = _tools.MissingToolsMessage();
+        var missing = _tools.MissingCaptureToolsMessage();
         if (missing is not null)
         {
             throw new InvalidOperationException(missing);
+        }
+
+        var vcam = await EnsureVirtualCameraAsync(cancellationToken).ConfigureAwait(false);
+        if (vcam is not null)
+        {
+            throw new InvalidOperationException(vcam);
         }
 
         var validation = PipelineCommands.ValidateReadyToStart(phone);
@@ -134,6 +139,7 @@ internal sealed class WebcamPipeline : IDisposable
             {
                 try
                 {
+                    await Task.Delay(2000, cancellationToken).ConfigureAwait(false);
                     var ffplay = Start(PipelineCommands.FfplayPreview(_tools.Ffplay, size, fps));
                     job.Add(ffplay);
                     AttachTextLog(ffplay);
@@ -220,7 +226,7 @@ internal sealed class WebcamPipeline : IDisposable
 
     public async Task<IReadOnlyList<PhoneDevice>> ListPhonesAsync(CancellationToken cancellationToken)
     {
-        var missing = _tools.MissingToolsMessage();
+        var missing = _tools.MissingCaptureToolsMessage();
         if (missing is not null)
         {
             throw new InvalidOperationException(missing);
@@ -265,7 +271,7 @@ internal sealed class WebcamPipeline : IDisposable
 
     public async Task<IReadOnlyList<CameraInfo>> ListCamerasAsync(string serial, CancellationToken cancellationToken)
     {
-        var missing = _tools.MissingToolsMessage();
+        var missing = _tools.MissingCaptureToolsMessage();
         if (missing is not null)
         {
             throw new InvalidOperationException(missing);
@@ -281,40 +287,69 @@ internal sealed class WebcamPipeline : IDisposable
 
     public async Task<string?> EnsureVirtualCameraAsync(CancellationToken cancellationToken)
     {
-        if (string.IsNullOrEmpty(_tools.AkVCamManager) || !File.Exists(_tools.AkVCamManager))
+        var manager = _tools.AkVCamManager;
+        if (string.IsNullOrEmpty(manager) || !File.Exists(manager))
         {
-            return "Installation is incomplete. Re-run OnePlusWebcam-Setup.exe.";
+            return PipelineCommands.VirtualCameraDriverHelp;
         }
 
-        var listed = await RunCapturedAsync(
-                PipelineCommands.AkVCamDevices(_tools.AkVCamManager),
-                TimeSpan.FromSeconds(10),
-                cancellationToken)
-            .ConfigureAwait(false);
-        if (listed.Output.Contains(PipelineCommands.VcamDeviceId, StringComparison.OrdinalIgnoreCase)
-            || listed.Output.Contains(PipelineCommands.VcamDescription, StringComparison.OrdinalIgnoreCase))
+        string? listedOutput = null;
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            try
+            {
+                var listed = await RunCapturedAsync(
+                        PipelineCommands.AkVCamDevices(manager),
+                        TimeSpan.FromSeconds(8),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                listedOutput = listed.Output;
+                break;
+            }
+            catch (TimeoutException ex)
+            {
+                _log.Write(ex.Message);
+                await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        if (listedOutput is null)
+        {
+            return PipelineCommands.VirtualCameraDriverHelp;
+        }
+
+        if (listedOutput.Contains(PipelineCommands.VcamDeviceId, StringComparison.OrdinalIgnoreCase)
+            || listedOutput.Contains(PipelineCommands.VcamDescription, StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
 
         if (!File.Exists(_tools.VcamIni))
         {
-            return "Re-run the installer as administrator to create the OnePlus Webcam camera device.";
+            return PipelineCommands.VirtualCameraDriverHelp;
         }
 
-        var load = await RunCapturedAsync(
-                PipelineCommands.AkVCamLoad(_tools.AkVCamManager, _tools.VcamIni),
-                TimeSpan.FromSeconds(15),
-                cancellationToken)
-            .ConfigureAwait(false);
-        _ = await RunCapturedAsync(
-                PipelineCommands.AkVCamSetPageSize(_tools.AkVCamManager),
-                TimeSpan.FromSeconds(10),
-                cancellationToken)
-            .ConfigureAwait(false);
-        if (load.ExitCode != 0)
+        try
         {
-            return "Re-run the installer as administrator to create the OnePlus Webcam camera device.";
+            var load = await RunCapturedAsync(
+                    PipelineCommands.AkVCamLoad(manager, _tools.VcamIni),
+                    TimeSpan.FromSeconds(8),
+                    cancellationToken)
+                .ConfigureAwait(false);
+            _ = await RunCapturedAsync(
+                    PipelineCommands.AkVCamSetPageSize(manager),
+                    TimeSpan.FromSeconds(5),
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (load.ExitCode != 0)
+            {
+                return PipelineCommands.VirtualCameraDriverHelp;
+            }
+        }
+        catch (TimeoutException ex)
+        {
+            _log.Write(ex.Message);
+            return PipelineCommands.VirtualCameraDriverHelp;
         }
 
         return null;
@@ -393,25 +428,9 @@ internal sealed class WebcamPipeline : IDisposable
         };
 
         using var process = new Process { StartInfo = psi };
-        var output = new StringBuilder();
-        process.OutputDataReceived += (_, e) =>
-        {
-            if (e.Data is not null)
-            {
-                output.AppendLine(e.Data);
-            }
-        };
-        process.ErrorDataReceived += (_, e) =>
-        {
-            if (e.Data is not null)
-            {
-                output.AppendLine(e.Data);
-            }
-        };
-
         process.Start();
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
+        var stdoutTask = process.StandardOutput.ReadToEndAsync();
+        var stderrTask = process.StandardError.ReadToEndAsync();
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutCts.CancelAfter(timeout);
@@ -430,10 +449,19 @@ internal sealed class WebcamPipeline : IDisposable
                 _log.Write("kill timeout: " + ex.Message);
             }
 
+            try
+            {
+                await Task.WhenAny(Task.WhenAll(stdoutTask, stderrTask), Task.Delay(1000, CancellationToken.None))
+                    .ConfigureAwait(false);
+            }
+            catch (IOException)
+            {
+            }
+
             throw new TimeoutException($"Timed out: {spec.FileName} {spec.Arguments}");
         }
 
-        var text = output.ToString();
+        var text = await stdoutTask.ConfigureAwait(false) + await stderrTask.ConfigureAwait(false);
         _log.Write($"> {spec.FileName} {spec.Arguments} => {process.ExitCode}");
         if (!string.IsNullOrWhiteSpace(text))
         {

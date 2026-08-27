@@ -1,5 +1,5 @@
 #define MyAppName "OnePlus Webcam"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.3"
 #define MyAppPublisher "Daniil Maltsev"
 #define MyAppExeName "OnePlusWebcam.exe"
 
@@ -20,6 +20,8 @@ PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\{#MyAppExeName}
+MinVersion=10.0
+SetupLogging=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -31,10 +33,13 @@ Name: "autostart"; Description: "Start with Windows"; GroupDescription: "Additio
 [Files]
 Source: "..\..\publish\OnePlusWebcam.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "vcam.ini"; DestDir: "{app}"; Flags: ignoreversion
+Source: "vcam.ini"; DestDir: "{app}\tools\akvcam"; Flags: ignoreversion
+Source: "register-vcam.cmd"; DestDir: "{app}\tools\akvcam"; Flags: ignoreversion
 Source: "vendor\scrcpy\*"; DestDir: "{app}\tools\scrcpy"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "vendor\ffmpeg\ffmpeg.exe"; DestDir: "{app}\tools\ffmpeg"; Flags: ignoreversion
 Source: "vendor\ffmpeg\ffplay.exe"; DestDir: "{app}\tools\ffmpeg"; Flags: ignoreversion
-Source: "vendor\akvirtualcamera-windows-9.4.1.exe"; DestDir: "{tmp}"; DestName: "akvcam-setup.exe"; Flags: deleteafterinstall
+Source: "vendor\akvcam\*"; DestDir: "{app}\tools\akvcam"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
+Source: "vendor\akvirtualcamera-windows-9.4.1.exe"; DestDir: "{app}\tools\akvcam"; DestName: "akvirtualcamera-setup.exe"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
@@ -44,71 +49,22 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "OnePlusWebcam"; ValueData: """{app}\{#MyAppExeName}"""; Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch OnePlus Webcam"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\tools\akvcam\akvirtualcamera-setup.exe"; Parameters: "/S"; StatusMsg: "Installing virtual camera driver..."; Flags: runhidden waituntilterminated skipifdoesntexist
+Filename: "{app}\tools\akvcam\register-vcam.cmd"; StatusMsg: "Registering OnePlus Webcam..."; Flags: runhidden waituntilterminated
+Filename: "{app}\{#MyAppExeName}"; Description: "Launch OnePlus Webcam"; Flags: nowait postinstall skipifsilent runasoriginaluser
 
 [UninstallRun]
-Filename: "{app}\tools\akvcam\AkVCamManager.exe"; Parameters: "remove-device OnePlusWebcam"; RunOnceId: "RemoveVCam"; Flags: runhidden
-Filename: "{app}\tools\akvcam\AkVCamManager.exe"; Parameters: "update"; RunOnceId: "UpdateVCam"; Flags: runhidden
+Filename: "{app}\tools\akvcam\AkVCamManager.exe"; Parameters: "remove-device OnePlusWebcam"; RunOnceId: "RemoveVCam"; Flags: runhidden skipifdoesntexist
+Filename: "{app}\tools\akvcam\AkVCamManager.exe"; Parameters: "update"; RunOnceId: "UpdateVCam"; Flags: runhidden skipifdoesntexist
 
 [Code]
-function FindAkVCamManager(): String;
+function InitializeSetup(): Boolean;
 begin
-  Result := ExpandConstant('{app}\tools\akvcam\AkVCamManager.exe');
-  if FileExists(Result) then
-    Exit;
-
-  Result := ExpandConstant('{pf}\akvirtualcamera\x64\AkVCamManager.exe');
-  if FileExists(Result) then
-    Exit;
-
-  Result := ExpandConstant('{pf}\AkVirtualCamera\AkVCamManager.exe');
-  if FileExists(Result) then
-    Exit;
-
-  Result := '';
-end;
-
-procedure CopyAkVCamManager();
-var
-  Src, DestDir, Dest: String;
-begin
-  Src := FindAkVCamManager();
-  DestDir := ExpandConstant('{app}\tools\akvcam');
-  Dest := DestDir + '\AkVCamManager.exe';
-  if (Src <> '') and (Src <> Dest) and FileExists(Src) then
+  Result := True;
+  if not IsAdmin then
   begin
-    ForceDirectories(DestDir);
-    FileCopy(Src, Dest, False);
-  end;
-end;
-
-function RunAkVCam(Params: String): Boolean;
-var
-  Manager: String;
-  ResultCode: Integer;
-begin
-  Result := False;
-  Manager := ExpandConstant('{app}\tools\akvcam\AkVCamManager.exe');
-  if not FileExists(Manager) then
-    Manager := FindAkVCamManager();
-  if Manager = '' then
-    Exit;
-  Result := Exec(Manager, Params, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-end;
-
-procedure CurStepChanged(CurStep: TSetupStep);
-var
-  ResultCode: Integer;
-  SetupExe: String;
-begin
-  if CurStep = ssPostInstall then
-  begin
-    SetupExe := ExpandConstant('{tmp}\akvcam-setup.exe');
-    if not Exec(SetupExe, '/S', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
-      Exec(SetupExe, '/VERYSILENT /NORESTART /SUPPRESSMSGBOXES', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-
-    CopyAkVCamManager();
-    RunAkVCam('load "' + ExpandConstant('{app}\vcam.ini') + '"');
-    RunAkVCam('set-page-size 128000000');
+    MsgBox('OnePlus Webcam must be installed as administrator so Windows can register the virtual webcam driver.' + #13#10#13#10 +
+      'Right-click OnePlusWebcam-Setup.exe and choose Run as administrator.', mbError, MB_OK);
+    Result := False;
   end;
 end;

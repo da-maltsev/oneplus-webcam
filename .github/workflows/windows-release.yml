@@ -51,6 +51,30 @@ jobs:
           Get-Verified $deps.ffmpeg.url $deps.ffmpeg.sha256 "$vendor/ffmpeg.zip"
           Get-Verified $deps.akvirtualcamera.url $deps.akvirtualcamera.sha256 "$vendor/akvirtualcamera-windows-9.4.1.exe"
 
+          choco install 7zip -y --no-progress
+          $seven = "${env:ProgramFiles}\7-Zip\7z.exe"
+          New-Item -ItemType Directory -Force -Path "$vendor/akvcam-extract","$vendor/akvcam" | Out-Null
+          Copy-Item "$vendor/akvirtualcamera-windows-9.4.1.exe" "$vendor/akvcam/akvirtualcamera-setup.exe" -Force
+          if (Test-Path $seven) {
+            $nativePref = $PSNativeCommandUseErrorActionPreference
+            $PSNativeCommandUseErrorActionPreference = $false
+            & $seven x "$vendor/akvirtualcamera-windows-9.4.1.exe" "-o$vendor/akvcam-extract" -y
+            $extractCode = $LASTEXITCODE
+            $PSNativeCommandUseErrorActionPreference = $nativePref
+            if ($extractCode -eq 0) {
+              $x64 = Get-ChildItem "$vendor/akvcam-extract" -Recurse -Directory -Filter "x64" | Select-Object -First 1
+              if ($x64) {
+                Copy-Item -Path (Join-Path $x64.FullName "*") -Destination "$vendor/akvcam" -Recurse -Force
+              } else {
+                Get-ChildItem "$vendor/akvcam-extract" -Recurse -Include "AkVCamManager.exe","AkVCamAssistant.exe","*.dll","*.sys" -ErrorAction SilentlyContinue | ForEach-Object {
+                  Copy-Item $_.FullName "$vendor/akvcam/" -Force
+                }
+              }
+            } else {
+              Write-Host "NSIS extract returned $extractCode; the installer will run the vendor setup at install time"
+            }
+          }
+
           Expand-Archive -Path "$vendor/scrcpy.zip" -DestinationPath "$vendor/scrcpy-extract" -Force
           $scrcpyRoot = Get-ChildItem "$vendor/scrcpy-extract" -Directory | Select-Object -First 1
           if ($scrcpyRoot) {

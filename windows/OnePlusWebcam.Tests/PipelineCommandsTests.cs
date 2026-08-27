@@ -28,6 +28,16 @@ public class PipelineCommandsTests
 
         var vcam = PipelineCommands.AkVCamStream("AkVCamManager.exe", "1280x720", 30);
         Assert.Equal("stream --fps 30 OnePlusWebcam RGB24 1280 720", vcam.Arguments);
+
+        var preview = PipelineCommands.FfplayPreview("ffplay.exe", "1920x1080", 30);
+        Assert.Contains("-i \"video=OnePlus Webcam\"", preview.Arguments);
+    }
+
+    [Fact]
+    public void VirtualCameraDriverHelp_TellsUserToInstallDriver()
+    {
+        Assert.Contains("Install webcam driver", PipelineCommands.VirtualCameraDriverHelp, StringComparison.Ordinal);
+        Assert.Equal("--install", PipelineCommands.AkVCamAssistantInstall("AkVCamAssistant.exe").Arguments);
     }
 
     [Fact]

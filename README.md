@@ -73,11 +73,13 @@ scrcpy exposes the phone's cameras by id (see `oneplus-cam cams`):
 
 Any **Android 12+** phone (not just OnePlus) can be used as a webcam on Windows 10/11. You do not need a terminal.
 
-1. Download **OnePlusWebcam-Setup.exe** from [Releases](https://github.com/da-maltsev/oneplus-webcam/releases).
-2. Double-click the installer and accept the one-time administrator prompt (virtual-camera driver).
+1. Download **OnePlusWebcam-Setup.exe** from [Releases](https://github.com/da-maltsev/oneplus-webcam/releases) (1.0.3 or newer).
+2. Double-click the installer and accept the Windows administrator prompt. Setup registers the **OnePlus Webcam** virtual camera (this needs admin; older builds skipped that step).
 3. On the phone, enable **Developer options → USB debugging**, plug in USB, and tap **Always allow**.
-4. Open **OnePlus Webcam** from the Start Menu. Pick a lens and **Start webcam**.
+4. Open **OnePlus Webcam** from the Start Menu. Pick a lens and **Start webcam**. A preview window, if enabled, opens a couple of seconds later.
 5. In Zoom, Teams, or Discord, choose the camera named **OnePlus Webcam**.
+
+If you already installed an older build, Zoom does not list **OnePlus Webcam**, or the app says the driver is not running: click **Install webcam driver**, accept the administrator prompt, then **Refresh** and **Start webcam**.
 
 Closing the window hides the app in the system tray (right-click the tray icon → Exit to quit). Optional: **Start with Windows**.
 

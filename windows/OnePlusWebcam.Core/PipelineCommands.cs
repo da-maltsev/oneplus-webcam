@@ -9,6 +9,8 @@ public static class PipelineCommands
     public const string VcamDeviceId = "OnePlusWebcam";
     public const string VcamDescription = "OnePlus Webcam";
     public const int MinAndroidSdk = 31;
+    public const string VirtualCameraDriverHelp =
+        "The virtual webcam driver is not running. Click \"Install webcam driver\" and accept the administrator prompt, then Refresh.";
 
     public static readonly string[] SizeChoices =
     [
@@ -79,12 +81,15 @@ public static class PipelineCommands
         var args =
             $"-loglevel error -noborder -alwaysontop -window_title \"OnePlus Webcam preview\" " +
             $"-fflags nobuffer -flags low_delay -f dshow -video_size {width}x{height} -framerate {fps} " +
-            "-i video=OnePlus Webcam";
+            "-i \"video=OnePlus Webcam\"";
         return new CommandSpec(ffplay, args);
     }
 
     public static CommandSpec AkVCamDevices(string akVCamManager) =>
         new(akVCamManager, "devices");
+
+    public static CommandSpec AkVCamAssistantInstall(string assistant) =>
+        new(assistant, "--install");
 
     public static CommandSpec AkVCamLoad(string akVCamManager, string iniPath) =>
         new(akVCamManager, $"load \"{iniPath}\"");
