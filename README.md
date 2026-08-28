@@ -69,30 +69,11 @@ scrcpy exposes the phone's cameras by id (see `oneplus-cam cams`):
   a "With preview" toggle, Start/Stop button, and live status. Keyboard:
   `s` start/stop, `r` refresh, `Esc` close.
 
-## Windows
-
-Any **Android 12+** phone (not just OnePlus) can be used as a webcam on Windows 10/11. You do not need a terminal.
-
-1. Download **OnePlusWebcam-Setup.exe** from [Releases](https://github.com/da-maltsev/oneplus-webcam/releases) (**1.0.4** or newer).
-2. Double-click the installer. Windows should ask for administrator permission. Setup then opens a **OnePlus Webcam driver** window and registers the virtual camera. If the silent driver install fails, the vendor installer window will appear — click through it.
-3. On the phone, enable **Developer options → USB debugging**, plug in USB, and tap **Always allow**.
-4. Open **OnePlus Webcam** from the Start Menu. Pick a lens and **Start webcam**. A preview window, if enabled, opens a couple of seconds later.
-5. In Zoom, Teams, or Discord, choose the camera named **OnePlus Webcam** (restart Zoom if it was already open).
-
-If you already installed an older build, Zoom does not list **OnePlus Webcam**, or the app says the driver is not running: click **Install webcam driver**. Windows must show a Yes/No administrator prompt (look on other monitors). After it succeeds, **Refresh** and **Start webcam**. If still nothing, right-click `OnePlusWebcam.exe` in `C:\Program Files\OnePlus Webcam` and choose **Run as administrator**.
-
-Closing the window hides the app in the system tray (right-click the tray icon → Exit to quit). Optional: **Start with Windows**.
-
-Chrome / Google Meet sometimes cannot open DirectShow virtual cameras. If the device does not appear there, use [OBS Studio](https://obsproject.com/) **Start Virtual Camera** as a fallback.
-
-The Windows app lives under `windows/`. GitHub Actions (tag `v*` or manual **workflow_dispatch**) builds `OnePlusWebcam-Setup.exe`.
-
 ## Files
 
 - `manifest.json`, `Panel.qml` — the Omarchy shell plugin
 - `bin/oneplus-cam` — the CLI helper
 - `install.sh` — full restore script
-- `windows/` — Windows tray app and Inno Setup installer
 
 ## License
 
